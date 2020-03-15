@@ -1,4 +1,4 @@
-
+--TODO: make this call the other script you dafty
 function main()
   cursorPosition = reaper.GetCursorPosition() 
   numberOfTracks = reaper.CountTracks(0)
@@ -9,7 +9,7 @@ function main()
   beepLengthS = 0.2
   newTrackName = "ADR Sync"
   newTrack = true
-  upperVolume = 1
+  upperVolume = 850 --magic value has changed from 1 to 850 for upper bound in reaper 6
   lowerVolume = 0
   ADRTrack = nil
   
