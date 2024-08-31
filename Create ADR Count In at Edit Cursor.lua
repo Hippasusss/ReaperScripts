@@ -8,11 +8,7 @@ function main()
   beepLengthS = 0.2
   newTrackName = "ADR Sync"
   newTrack = true
-<<<<<<< HEAD
-  upperVolume = 1
-=======
   upperVolume = 850 -- magic value a has changed from 1 to 850 as upper bound in reaper 6
->>>>>>> 4c1d8e8f40b1c58360a599a8842b825750556ab5
   lowerVolume = 0
   ADRTrack = nil
   

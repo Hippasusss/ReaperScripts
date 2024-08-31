@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 
-=======
 --TODO: make this call the other script you dafty
->>>>>>> 4c1d8e8f40b1c58360a599a8842b825750556ab5
 function main()
   cursorPosition = reaper.GetCursorPosition() 
   numberOfTracks = reaper.CountTracks(0)
@@ -13,11 +10,7 @@ function main()
   beepLengthS = 0.2
   newTrackName = "ADR Sync"
   newTrack = true
-<<<<<<< HEAD
-  upperVolume = 1
-=======
   upperVolume = 850 --magic value has changed from 1 to 850 for upper bound in reaper 6
->>>>>>> 4c1d8e8f40b1c58360a599a8842b825750556ab5
   lowerVolume = 0
   ADRTrack = nil
   
