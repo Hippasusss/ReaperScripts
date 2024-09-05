@@ -88,6 +88,7 @@ function AddBeepsAtPosition(position)
 
         reaper.MoveEditCursor( -BEEPLENGTHS, false )
     end
+    reaper.MoveEditCursor( -SECONDSBETWEENBEEPS, false )
     startPoint = reaper.GetCursorPosition()
     reaper.SetMediaTrackInfo_Value(ADRTrack, "B_MUTE", 0)--Unmute
 
