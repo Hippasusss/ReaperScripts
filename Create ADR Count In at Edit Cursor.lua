@@ -1,89 +1,103 @@
-function main()
-  cursorPosition = reaper.GetCursorPosition() 
-  numberOfTracks = reaper.CountTracks(0)
-  numberOfSelectedTracks = reaper.CountSelectedTracks(0)
-  numberOfRegionsAndMarkers, numberOfMarkers, numberOfRegions = reaper.CountProjectMarkers(0)
-  numberOfBeeps = 3
-  secondsBetweenBeeps = 1
-  beepLengthS = 0.2
-  newTrackName = "ADR Sync"
-  newTrack = true
-  upperVolume = 850 -- magic value a has changed from 1 to 850 as upper bound in reaper 6
-  lowerVolume = 0
-  ADRTrack = nil
-  
-  
-  reaper.Undo_BeginBlock()
-  
-  --Check and see if the track is already there and just use it if it is
-  for i = 0, numberOfTracks - 1 do
-    track = reaper.GetTrack( 0, i )
-    nope, trackName =  reaper.GetSetMediaTrackInfo_String( track, "P_NAME", "", false)
-    if newTrackName == trackName then
-      ADRtrack = track
-      newTrack = false
-      break
+NUMBEROFBEEPS = 3
+SECONDSBETWEENBEEPS = 1
+FREQUENCY = 300
+BEEPLENGTHS = 0.2
+NEWTRACKNAME = "ADR Sync"
+UPPERVOLUME = 850 -- magic value a has changed from 1 to 850 as upper bound in reaper 6
+LOWERVOLUME = 0
+
+function AddBeepsAtPosition(position)
+    local numberOfTracks = reaper.CountTracks(0)
+    local ADRTrack = nil
+    local ADRRenderTrack = nil
+
+    reaper.Undo_BeginBlock()
+    local retval, retvals_csv = reaper.GetUserInputs( "beepConfig", 4, "Num Beeps, Sep Time, Freq(Hz), Beep Len", string.format("%d,%.1f,%d,%.1f", NUMBEROFBEEPS, SECONDSBETWEENBEEPS, FREQUENCY, BEEPLENGTHS))
+    if retval == false then
+        return
     end
-  end
-  
 
-  --Set the new track for the beeps up if it isn't already there
-  if newTrack then
+    --Check and see if the track is already there and just use it if it is
+    local newTrack = true
+    for i = 0, numberOfTracks - 1 do
+        local track = reaper.GetTrack( 0, i )
+        local _, trackName =  reaper.GetSetMediaTrackInfo_String( track, "P_NAME", "", false)
+        if NEWTRACKNAME == trackName then
+            ADRRenderTrack = track
+            newTrack = false
+            break
+        end
+    end
+
+    --Set the new track for the beeps up if it isn't already there
+    if newTrack then
+        reaper.Main_OnCommand(40001, 1) --New Track
+        ADRRenderTrack = reaper.GetSelectedTrack( 0, 0 )
+        reaper.GetSetMediaTrackInfo_String( ADRRenderTrack, "P_NAME", NEWTRACKNAME, true)
+    end
+
     reaper.Main_OnCommand(40001, 1) --New Track
-    ADRtrack =  reaper.GetSelectedTrack( 0, 0 )
-    reaper.TrackFX_AddByName(ADRtrack, "tonegenerator", false, 1)
-    reaper.GetSetMediaTrackInfo_String( ADRtrack, "P_NAME", newTrackName, true)
-  end
-  
-  reaper.SetOnlyTrackSelected( ADRtrack )
-  volumeEnvelope = reaper.GetTrackEnvelopeByChunkName( ADRtrack, "<VOLENV2" ) 
-  modifyEnvelope(volumeEnvelope, true, true)
-  reaper.SetCursorContext(2, volumeEnvelope)
-  
-  reaper.SetMediaTrackInfo_Value(ADRtrack, "B_MUTE", 1)--Mute it to stop popping
-  AutomateBeeps(beepLengthS,numberOfBeeps, volumeEnvelope)
-  reaper.SetMediaTrackInfo_Value(ADRtrack, "B_MUTE", 0)--Unmute
-  
-  reaper.SetEditCurPos( cursorPosition, false, false )
-  reaper.Main_OnCommand(40888, 1)--Show All Active Automation Lanes
-  modifyEnvelope(volumeEnvelope, true, true) 
-  
-  reaper.Undo_EndBlock("Added ADR Sync Beeps Using Cursor",0)
-  
+    ADRTrack =  reaper.GetSelectedTrack( 0, 0 )
+    reaper.TrackFX_AddByName(ADRTrack, "tonegenerator", false, 1)
+
+    reaper.SetOnlyTrackSelected( ADRTrack )
+    local volumeEnvelope = reaper.GetTrackEnvelopeByChunkName( ADRTrack, "<VOLENV2" )
+    ModifyEnvelope(volumeEnvelope, true, true)
+    reaper.SetCursorContext(2, volumeEnvelope)
+
+    reaper.SetMediaTrackInfo_Value(ADRTrack, "B_MUTE", 1)--Mute it to stop popping
+
+    local startPoint, endPoint
+    -- Automation 
+    endPoint = reaper.GetCursorPosition()
+    for _ = 0, NUMBEROFBEEPS - 1 do
+        --Bottom left point
+        reaper.MoveEditCursor( -SECONDSBETWEENBEEPS, false )
+        reaper.InsertEnvelopePoint( volumeEnvelope,  reaper.GetCursorPosition(), LOWERVOLUME, 0, 0, false)
+
+        --Top left point    
+        reaper.MoveEditCursor( 0.01, false )
+        reaper.InsertEnvelopePoint( volumeEnvelope,  reaper.GetCursorPosition(), UPPERVOLUME, 0, 0, false)
+
+        --Top right point        
+        reaper.MoveEditCursor( BEEPLENGTHS -0.02 , false )
+        reaper.InsertEnvelopePoint( volumeEnvelope,  reaper.GetCursorPosition(), UPPERVOLUME, 0, 0, false)
+
+        --Bottom right point    
+        reaper.MoveEditCursor( 0.01, false )
+        reaper.InsertEnvelopePoint( volumeEnvelope,  reaper.GetCursorPosition(), LOWERVOLUME, 0, 0, false)
+
+        reaper.MoveEditCursor( -BEEPLENGTHS, false )
+    end
+    startPoint = reaper.GetCursorPosition()
+    reaper.SetMediaTrackInfo_Value(ADRTrack, "B_MUTE", 0)--Unmute
+
+    reaper.Main_OnCommand(40888, 1)--Show All Active Automation Lanes
+    ModifyEnvelope(volumeEnvelope, true, true)
+
+    reaper.GetSet_LoopTimeRange(true, false, startPoint, endPoint, false)
+    reaper.Main_OnCommand(41718, 1)--Render Selected Area of Selected Tracks To Mono (Post Fade)
+
+    local currentRenderTrack = reaper.GetSelectedTrack( 0, 0)
+    local currentBeepsMediaItem = reaper.GetTrackMediaItem( currentRenderTrack, 0)
+    reaper.MoveMediaItemToTrack( currentBeepsMediaItem, ADRRenderTrack)
+    reaper.DeleteTrack(currentRenderTrack)
+    reaper.DeleteTrack(ADRTrack)
+
+    reaper.SetEditCurPos( position, false, false )
+    reaper.Undo_EndBlock("Added ADR Sync Beeps Using Cursor",0)
 end
 
-function AutomateBeeps(length, number, envelope)
-  for j = 0, number - 1 do
-    --Bottom left point
-    reaper.MoveEditCursor( -secondsBetweenBeeps, false )
-    reaper.InsertEnvelopePoint( envelope,  reaper.GetCursorPosition(), lowerVolume, 0, 0, false)
-    
-    --Top left point    
-    reaper.MoveEditCursor( 0.01, false )
-    reaper.InsertEnvelopePoint( envelope,  reaper.GetCursorPosition(), upperVolume, 0, 0, false)
-    
-    --Top right point        
-    reaper.MoveEditCursor( length -0.02 , false )
-    reaper.InsertEnvelopePoint( envelope,  reaper.GetCursorPosition(), upperVolume, 0, 0, false)
-     
-    --Bottom right point    
-    reaper.MoveEditCursor( 0.01, false )
-    reaper.InsertEnvelopePoint( envelope,  reaper.GetCursorPosition(), lowerVolume, 0, 0, false)
-        
-    reaper.MoveEditCursor( -length, false )
-  end
-end 
-
-function modifyEnvelope(envelope, activate, visible)
-  local env, ret, rppxml
-  ret, rppxml = reaper.GetEnvelopeStateChunk(envelope, "", true)
-  if activate then rppxml = string.gsub(rppxml, "ACT 0", "ACT 1") end
-  if visible then 
-    rppxml = string.gsub(rppxml, "VIS 0", "VIS 1") 
-    rppxml = string.gsub(rppxml, "ARM 0", "ARM 1")
-  end
-  reaper.SetEnvelopeStateChunk(envelope, rppxml, true)
+function ModifyEnvelope(envelope, activate, visible)
+    local _, rppxml = reaper.GetEnvelopeStateChunk(envelope, "", true)
+    if activate then rppxml = string.gsub(rppxml, "ACT 0", "ACT 1") end
+    if visible then
+        rppxml = string.gsub(rppxml, "VIS 0", "VIS 1")
+        rppxml = string.gsub(rppxml, "ARM 0", "ARM 1")
+    end
+    reaper.SetEnvelopeStateChunk(envelope, rppxml, true)
 end
 
-main()
+
+AddBeepsAtPosition(reaper.GetCursorPosition())
 reaper.UpdateArrange()
