@@ -99,7 +99,33 @@ function AddBeepsAtPosition(position)
 
     local currentRenderTrack = reaper.GetSelectedTrack( 0, 0)
     local currentBeepsMediaItem = reaper.GetTrackMediaItem( currentRenderTrack, 0)
+
+    local cbstart = reaper.GetMediaItemInfo_Value( currentBeepsMediaItem, "D_POSITION" )
+    local cbend = cbstart + reaper.GetMediaItemInfo_Value( currentBeepsMediaItem, "D_LENGTH" )
+    for i = 0, reaper.CountTrackMediaItems(ADRRenderTrack)-1 do
+        local currentItemRenderTrack = reaper.GetTrackMediaItem(ADRRenderTrack, i)
+        local crbstart = reaper.GetMediaItemInfo_Value( currentItemRenderTrack, "D_POSITION" )
+        local crbend = crbstart + reaper.GetMediaItemInfo_Value( currentItemRenderTrack, "D_LENGTH" )
+
+        -- delete perfect overlaps (Should check for these earlier and just not generate new beeps)
+        local floatThreshold = 0.0001
+        if math.abs(cbstart - crbstart) < floatThreshold and math.abs(cbend - crbend) < floatThreshold then
+            reaper.DeleteTrackMediaItem( ADRRenderTrack, currentItemRenderTrack)
+        end
+
+        -- trim right overlaps
+        if cbstart < crbend and cbend > crbend then
+            reaper.BR_SetItemEdges( currentItemRenderTrack, crbstart, cbstart)
+        end
+        -- trim left overlaps
+        if cbend > crbstart and cbstart < crbstart then
+            reaper.BR_SetItemEdges( currentItemRenderTrack, cbend, crbend)
+        end
+    end
+
     reaper.MoveMediaItemToTrack( currentBeepsMediaItem, ADRRenderTrack)
+
+
     reaper.DeleteTrack(currentRenderTrack)
     reaper.DeleteTrack(ADRTrack)
 
