@@ -1,6 +1,6 @@
 NUMBEROFBEEPS = 3
 SECONDSBETWEENBEEPS = 1
-FREQUENCY = 300
+FREQUENCY = 440
 BEEPLENGTHS = 0.2
 NEWTRACKNAME = "ADR Sync"
 UPPERVOLUME = 850 -- magic value a has changed from 1 to 850 as upper bound in reaper 6
@@ -11,11 +11,22 @@ function AddBeepsAtPosition(position)
     local ADRTrack = nil
     local ADRRenderTrack = nil
 
-    reaper.Undo_BeginBlock()
-    local retval, retvals_csv = reaper.GetUserInputs( "beepConfig", 4, "Num Beeps, Sep Time, Freq(Hz), Beep Len", string.format("%d,%.1f,%d,%.1f", NUMBEROFBEEPS, SECONDSBETWEENBEEPS, FREQUENCY, BEEPLENGTHS))
-    if retval == false then
+    -- Get user input
+    local retval, retvals = reaper.GetUserInputs( "beepConfig", 4, "Num Beeps, Sep Time, Freq(Hz), Beep Len", string.format("%d,%.1f,%d,%.1f", NUMBEROFBEEPS, SECONDSBETWEENBEEPS, FREQUENCY, BEEPLENGTHS))
+    if retval == false then -- bail if cancel clicked
         return
     end
+
+    reaper.Undo_BeginBlock()
+
+    local vals = {}
+    for v in retvals:gmatch("([^,]+)") do
+        vals[#vals+1] = tonumber(v)
+    end
+    NUMBEROFBEEPS = vals[1]
+    SECONDSBETWEENBEEPS = vals[2]
+    FREQUENCY = vals[3]
+    BEEPLENGTHS = vals[4]
 
     --Check and see if the track is already there and just use it if it is
     local newTrack = true
@@ -36,9 +47,12 @@ function AddBeepsAtPosition(position)
         reaper.GetSetMediaTrackInfo_String( ADRRenderTrack, "P_NAME", NEWTRACKNAME, true)
     end
 
+
+    --Create temp beep making tonegen track
     reaper.Main_OnCommand(40001, 1) --New Track
     ADRTrack =  reaper.GetSelectedTrack( 0, 0 )
     reaper.TrackFX_AddByName(ADRTrack, "tonegenerator", false, 1)
+    reaper.TrackFX_SetParam( ADRTrack, 0, 2, FREQUENCY)
 
     reaper.SetOnlyTrackSelected( ADRTrack )
     local volumeEnvelope = reaper.GetTrackEnvelopeByChunkName( ADRTrack, "<VOLENV2" )
