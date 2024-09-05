@@ -6,7 +6,7 @@ NEWTRACKNAME = "ADR Sync"
 UPPERVOLUME = 850 -- magic value a has changed from 1 to 850 as upper bound in reaper 6
 LOWERVOLUME = 0
 
-function AddBeepsAtPosition(position)
+function SetUpTracksForBeeps()
     local numberOfTracks = reaper.CountTracks(0)
     local ADRTrack = nil
     local ADRRenderTrack = nil
@@ -53,7 +53,12 @@ function AddBeepsAtPosition(position)
     ADRTrack =  reaper.GetSelectedTrack( 0, 0 )
     reaper.TrackFX_AddByName(ADRTrack, "tonegenerator", false, 1)
     reaper.TrackFX_SetParam( ADRTrack, 0, 2, FREQUENCY)
+    return ADRTrack, ADRRenderTrack
+end
 
+function AddBeepsAtPosition(position)
+
+    local ADRTrack, ADRRenderTrack = SetUpTracksForBeeps()
     reaper.SetOnlyTrackSelected( ADRTrack )
     local volumeEnvelope = reaper.GetTrackEnvelopeByChunkName( ADRTrack, "<VOLENV2" )
     ModifyEnvelope(volumeEnvelope, true, true)
