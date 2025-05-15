@@ -11,4 +11,13 @@ end
 
 local timeCode = reaper.format_timestr_pos(playPositionSeconds, "", 5)
 
-reaper.CF_SetClipboard(timeCode)
+local _, rectag = reaper.GetSetProjectInfo_String(0, "RECTAG","", false)
+
+local clipboardText = ""
+if rectag == "" then
+    clipboardText = timeCode
+else
+    clipboardText = rectag .. "\n" .. timeCode
+end
+
+reaper.CF_SetClipboard(clipboardText)
