@@ -12,6 +12,8 @@ function main()
         length =  reaper.GetMediaItemInfo_Value(nextItem, "D_POSITION")- reaper.GetMediaItemInfo_Value(currentItem, "D_POSITION")
         reaper.SetMediaItemLength(currentItem,length, true)
     end
+    currentItem = reaper.GetSelectedMediaItem(0,CountMediaItems - 1);
+    reaper.SetMediaItemInfo_Value( currentItem, "B_LOOPSRC", 1)
     ::continue::
 end
 
